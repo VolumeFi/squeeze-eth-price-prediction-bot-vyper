@@ -83,8 +83,6 @@ def __init__(_admin: address, _reward_token: address, _factory: address):
     self.admin = _admin
     self.reward_token = _reward_token
     FACTORY = _factory
-    self.epoch_cnt = 0
-    self.active_epoch_num = 0
 
 # Check that sender is admin
 @internal
