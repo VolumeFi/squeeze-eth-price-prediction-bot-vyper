@@ -7,17 +7,17 @@
 @author     Volume.finance
 """
 struct EpochInfo:
-    competitionStart: uint256
-    competitionEnd: uint256
-    entryCnt: uint256
+    competition_start: uint256
+    competition_end: uint256
+    entry_cnt: uint256
 
 struct BidInfo:
     sender: address
-    pricePredictionVal: uint256
+    price_prediction_val: uint256
 
 struct WinnerInfo:
     winner: address
-    claimableAmount: uint256
+    claimable_amount: uint256
 
 struct SwapInfo:
     route: address[11]
@@ -28,16 +28,18 @@ struct SwapInfo:
 
 MAX_ENTRY: constant(uint256) = 1000
 MAX_SIZE: constant(uint256) = 8
+DAY_IN_SEC: constant(uint256) = 86400
+
+FACTORY: public(immutable(address))
 
 admin: public(address)
-rewardToken: public(address)
-FACTORY: immutable(address)
-bidInfo: public(HashMap[uint256, HashMap[uint256, BidInfo]])
-winnerInfo: public(HashMap[uint256, HashMap[uint256, WinnerInfo]])
-epochInfo: public(HashMap[uint256, EpochInfo])
-epochCnt: public(uint256)
-activeEpochNum: public(uint256)
-claimableAmount: public(HashMap[address, uint256])
+reward_token: public(address)
+bid_info: public(HashMap[uint256, HashMap[uint256, BidInfo]])
+winner_info: public(HashMap[uint256, HashMap[uint256, WinnerInfo]])
+epoch_info: public(HashMap[uint256, EpochInfo])
+epoch_cnt: public(uint256)
+active_epoch_num: public(uint256)
+claimable_amount: public(HashMap[address, uint256])
 
 interface ERC20:
     def approve(_spender: address, _value: uint256) -> bool: nonpayable
@@ -64,125 +66,126 @@ interface CreateBotFactory:
     ): payable
 
 event RewardSent:
-    epochId: uint256
+    epoch_id: uint256
     sender: address
-    rewardToken: address
+    reward_token: address
     amount: uint256
-    competitionStart: uint256
-    competitionEnd: uint256
+    competition_start: uint256
+    competition_end: uint256
 
 event Bid:
-    epochId: uint256
+    epoch_id: uint256
     bidder: address
-    predictionVal: uint256
+    prediction_val: uint256
 
 @external
-def __init__(_admin: address, _rewardToken: address, _factory: address):
+def __init__(_admin: address, _reward_token: address, _factory: address):
     self.admin = _admin
-    self.rewardToken = _rewardToken
+    self.reward_token = _reward_token
     FACTORY = _factory
-    self.epochCnt = 0
-    self.activeEpochNum = 0
+    self.epoch_cnt = 0
+    self.active_epoch_num = 0
+
+# Check that sender is admin
+@internal
+def _check_admin():
+    assert msg.sender == self.admin, "Not Admin"
 
 @external
-def setAdmin(_newAdmin: address):
-    assert msg.sender == self.admin
-    
-    self.admin = _newAdmin
+def set_admin(_new_admin: address):
+    self._check_admin()
+    self.admin = _new_admin
 
 @external
-def setRewardToken(_newRewardToken: address):
-    assert msg.sender == self.admin
-    
-    self.rewardToken = _newRewardToken
+def set_reward_token(_new_reward_token: address):
+    self._check_admin()
+    self.reward_token = _new_reward_token
 
 @external
-def sendReward(_amount: uint256):
-    # Check that sender is admin
-    assert msg.sender == self.admin
+def send_reward(_amount: uint256):
+    self._check_admin()
 
     # Transfer reward token to the contract
-    _rewardToken: address = self.rewardToken
-    assert ERC20(_rewardToken).transferFrom(msg.sender, self, _amount, default_return_value=True), "Transaction Failed"
+    _reward_token: address = self.reward_token
+    assert ERC20(_reward_token).transferFrom(msg.sender, self, _amount, default_return_value=True), "Send Reward Failed"
     
-    _epochCnt: uint256 = self.epochCnt
-    _competitionStart: uint256 = 0
-    _competitionEnd: uint256 = 0
+    _epoch_cnt: uint256 = self.epoch_cnt
+    _competition_start: uint256 = 0
+    _competition_end: uint256 = 0
 
-    if _epochCnt == 0:
-        _epochCnt += 1
-        self.activeEpochNum += 1
+    if _epoch_cnt == 0:
+        _epoch_cnt = unsafe_add(_epoch_cnt, 1)
+        self.active_epoch_num = unsafe_add(self.active_epoch_num, 1)
 
-        _competitionStart = block.timestamp / 86400 * 86400 + 86400
-        _competitionEnd = block.timestamp / 86400 * 86400 + 86400 * 2
+        _competition_start = unsafe_add(unsafe_mul(unsafe_div(block.timestamp, DAY_IN_SEC), DAY_IN_SEC), DAY_IN_SEC)
+        _competition_end = unsafe_add(_competition_start, DAY_IN_SEC)
 
     else:
-        _lastEpochInfo: EpochInfo = self.epochInfo[_epochCnt]
-        _lastCompetitionStart: uint256 = _lastEpochInfo.competitionStart
-        _lastCompetitionEnd: uint256 = _lastEpochInfo.competitionEnd
+        _last_epoch_info: EpochInfo = self.epoch_info[_epoch_cnt]
+        _last_competition_start: uint256 = _last_epoch_info.competition_start
+        _last_competition_end: uint256 = _last_epoch_info.competition_end
         
-        _epochCnt += 1
-        if block.timestamp >= _lastCompetitionStart:
-            _competitionStart = block.timestamp / 86400 * 86400 + 86400
-            _competitionEnd = block.timestamp / 86400 * 86400 + 86400 * 2
-        elif block.timestamp < _lastCompetitionStart:
-            _competitionStart = _lastCompetitionStart + 86400
-            _competitionEnd = _lastCompetitionEnd + 86400
+        _epoch_cnt = unsafe_add(_epoch_cnt, 1)
+        if block.timestamp >= _last_competition_start:
+            _competition_start = unsafe_add(unsafe_mul(unsafe_div(block.timestamp, DAY_IN_SEC), DAY_IN_SEC), DAY_IN_SEC)
+            _competition_end = unsafe_add(_competition_start, DAY_IN_SEC)
+        elif block.timestamp < _last_competition_start:
+            _competition_start = unsafe_add(_last_competition_start, DAY_IN_SEC)
+            _competition_end = unsafe_add(_last_competition_end, DAY_IN_SEC)
 
     # Write
-    self.epochInfo[_epochCnt] = EpochInfo({
-        competitionStart: _competitionStart,
-        competitionEnd: _competitionEnd,
-        entryCnt: 0
+    self.epoch_info[_epoch_cnt] = EpochInfo({
+        competition_start: _competition_start,
+        competition_end: _competition_end,
+        entry_cnt: 0
     })    
-    self.epochCnt = _epochCnt
+    self.epoch_cnt = _epoch_cnt
 
     # Event Log
-    log RewardSent(_epochCnt, msg.sender, _rewardToken, _amount, _competitionStart, _competitionEnd)
+    log RewardSent(_epoch_cnt, msg.sender, _reward_token, _amount, _competition_start, _competition_end)
 
 @external
-def bid(_pricePredictionVal: uint256):
-    _activeEpochNum: uint256 = self.activeEpochNum
-    _epochInfo: EpochInfo = self.epochInfo[_activeEpochNum]
-    assert _activeEpochNum <= self.epochCnt
-    assert block.timestamp >= _epochInfo.competitionStart
-    assert block.timestamp < _epochInfo.competitionEnd
-    assert _epochInfo.entryCnt < MAX_ENTRY
+def bid(_price_prediction_val: uint256):
+    _active_epoch_num: uint256 = self.active_epoch_num
+    _epoch_info: EpochInfo = self.epoch_info[_active_epoch_num]
+    
+    assert _active_epoch_num <= self.epoch_cnt, "No Reward yet"
+    assert block.timestamp >= _epoch_info.competition_start, "Not Active"
+    assert block.timestamp < _epoch_info.competition_end, "Not Active"
+    assert _epoch_info.entry_cnt < MAX_ENTRY, "Entry Limited"
 
-    _epochInfo.entryCnt += 1
+    _epoch_info.entry_cnt = unsafe_add(_epoch_info.entry_cnt, 1)
     
     #Write
-    self.bidInfo[_activeEpochNum][_epochInfo.entryCnt] = BidInfo({
+    self.bid_info[_active_epoch_num][_epoch_info.entry_cnt] = BidInfo({
         sender: msg.sender,
-        pricePredictionVal: _pricePredictionVal
+        price_prediction_val: _price_prediction_val
     })
-    self.epochInfo[_activeEpochNum] = _epochInfo
+    self.epoch_info[_active_epoch_num] = _epoch_info
 
     # Event Log
-    log Bid(_activeEpochNum, msg.sender, _pricePredictionVal)
+    log Bid(_active_epoch_num, msg.sender, _price_prediction_val)
 
 # need to confirm with team
 @external
-def setWinnerList(_winnerInfos: DynArray[WinnerInfo, MAX_ENTRY]):
-    assert msg.sender == self.admin
+def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
+    self._check_admin()
 
-    _activeEpochNum: uint256 = self.activeEpochNum
-    assert _activeEpochNum <= self.epochCnt
+    _active_epoch_num: uint256 = self.active_epoch_num
+    assert _active_epoch_num <= self.epoch_cnt, "No Reward yet"
 
     _i: uint256 = 0
-    for _winnerInfo in _winnerInfos:
-        self.winnerInfo[_activeEpochNum][_i] = _winnerInfos[_i]
-        self.claimableAmount[_winnerInfo.winner] += _winnerInfo.claimableAmount
-
-        _i += 1
+    for _winner_info in _winner_infos:
+        self.winner_info[_active_epoch_num][_i] = _winner_infos[_i]
+        self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
+        _i = unsafe_add(_i, 1)
 
     # increse activeEpochNum for activating the next Epoch
-    _activeEpochNum += 1
-    self.activeEpochNum = _activeEpochNum
+    self.active_epoch_num = unsafe_add(_active_epoch_num, 1)
 
 @external
 @payable
-def createBot(swap_infos: DynArray[SwapInfo, MAX_SIZE], 
+def create_bot(swap_infos: DynArray[SwapInfo, MAX_SIZE], 
         collateral: address, 
         settlement: address, 
         debt: uint256, 
@@ -196,8 +199,11 @@ def createBot(swap_infos: DynArray[SwapInfo, MAX_SIZE],
         expire: uint256, 
         number_trades: uint256, 
         interval: uint256):
-    assert self.claimableAmount[msg.sender] > 0
 
+    _claimable_amount: uint256 = self.claimable_amount[msg.sender]
+    assert _claimable_amount > 0, "No Claimable Amount"
+
+    ERC20(self.reward_token).approve(self, _claimable_amount)
     CreateBotFactory(FACTORY).create_bot(
         swap_infos, 
         collateral, 
@@ -214,6 +220,9 @@ def createBot(swap_infos: DynArray[SwapInfo, MAX_SIZE],
         number_trades,
         interval, 
         msg.sender)
+
+    # init claimable amount 
+    self.claimable_amount[msg.sender] = 0
 
 @external
 @payable
