@@ -11,10 +11,6 @@ struct EpochInfo:
     competition_end: uint256
     entry_cnt: uint256
 
-struct BidInfo:
-    sender: address
-    price_prediction_val: uint256
-
 struct WinnerInfo:
     winner: address
     claimable_amount: uint256
@@ -37,7 +33,6 @@ compass: public(address)
 paloma: public(bytes32)
 reward_token: public(address)
 decimals: public(uint256)
-bid_info: public(HashMap[uint256, HashMap[uint256, BidInfo]])
 winner_info: public(HashMap[uint256, HashMap[uint256, WinnerInfo]])
 epoch_info: public(HashMap[uint256, EpochInfo])
 epoch_cnt: public(uint256)
