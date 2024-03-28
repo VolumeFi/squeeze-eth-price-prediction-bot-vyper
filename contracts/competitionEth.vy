@@ -75,9 +75,18 @@ event UpdateCompass:
     old_compass: address
     new_compass: address
 
+event UpdateRewardToken:
+    new_reward: address
+    new_decimals: uint256
+
 event SetPaloma:
     paloma: bytes32
 
+event SetWinner:
+    epoch_id: uint256
+    winner: address
+    claimable_amount: uint256
+    
 @external
 def __init__(_compass: address, _reward_token: address, _decimals: uint256, _factory: address):
     self.compass = _compass
@@ -91,6 +100,7 @@ def __init__(_compass: address, _reward_token: address, _decimals: uint256, _fac
 def update_compass(new_compass: address):
     assert msg.sender == self.compass and len(msg.data) == 68 and convert(slice(msg.data, 36, 32), bytes32) == self.paloma, "Unauthorized"
     self.compass = new_compass
+
     log UpdateCompass(msg.sender, new_compass)
 
 @external
@@ -98,6 +108,7 @@ def set_paloma():
     assert msg.sender == self.compass and self.paloma == empty(bytes32) and len(msg.data) == 36, "Invalid"
     _paloma: bytes32 = convert(slice(msg.data, 4, 32), bytes32)
     self.paloma = _paloma
+
     log SetPaloma(_paloma)
 
 @external
@@ -106,6 +117,8 @@ def set_reward_token(_new_reward_token: address, _new_decimals: uint256):
 
     self.reward_token = _new_reward_token
     self.decimals = _new_decimals
+
+    log UpdateRewardToken(_new_reward_token, _new_decimals)
 
 @external
 def send_reward(_amount: uint256):
@@ -169,6 +182,7 @@ def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
         self.winner_info[_active_epoch_num][_i] = _winner_infos[_i]
         self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
         _i = unsafe_add(_i, 1)
+        log SetWinner(_active_epoch_num, _winner_info.winner, _winner_info.claimable_amount)
 
     # increse activeEpochNum for activating the next Epoch
     self.active_epoch_num = unsafe_add(_active_epoch_num, 1)
