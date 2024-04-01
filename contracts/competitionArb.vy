@@ -19,7 +19,7 @@ struct BidInfo:
 
 MAX_ENTRY: constant(uint256) = 1000
 
-bid_info: public(HashMap[uint256, BidInfo])
+bid_info: public(DynArray[BidInfo, MAX_ENTRY])
 latest_bid: public(HashMap[address, uint256])
 epoch_info: public(EpochInfo)
 paloma: public(bytes32)
@@ -79,11 +79,11 @@ def bid(_price_prediction_val: uint256):
     _epoch_info.entry_cnt = unsafe_add(_epoch_info.entry_cnt, 1)
     
     #Write
-    self.bid_info[_epoch_info.entry_cnt] = BidInfo({
+    self.bid_info.append(BidInfo({
         epoch_id: _epoch_info.epoch_id,
         sender: msg.sender,
         price_prediction_val: _price_prediction_val
-    })
+    }))
     self.latest_bid[msg.sender] = _epoch_info.epoch_id
     self.epoch_info = _epoch_info
 
