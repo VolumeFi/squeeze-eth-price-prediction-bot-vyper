@@ -47,9 +47,14 @@ def __init__(_compass: address):
     self.compass = _compass
     log UpdateCompass(empty(address), _compass)
 
+@internal
+def _paloma_check():
+    assert msg.sender == self.compass, "Not compass"
+    assert self.paloma == convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32), "Invalid paloma"
+
 @external
 def update_compass(new_compass: address):
-    assert msg.sender == self.compass and len(msg.data) == 68 and convert(slice(msg.data, 36, 32), bytes32) == self.paloma, "Unauthorized"
+    self._paloma_check()
     self.compass = new_compass
     log UpdateCompass(msg.sender, new_compass)
 
@@ -62,8 +67,7 @@ def set_paloma():
 
 @external
 def set_active_epoch(_epoch_info: EpochInfo):
-    assert msg.sender == self.compass and convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32) == self.paloma, "Unauthorized"
-
+    self._paloma_check()
     self.epoch_info = _epoch_info
     log SetActiveEpoch(_epoch_info.epoch_id, _epoch_info.competition_start, _epoch_info.competition_end)
 

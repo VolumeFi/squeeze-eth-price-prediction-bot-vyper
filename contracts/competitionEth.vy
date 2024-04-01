@@ -97,14 +97,17 @@ def __init__(_compass: address, _reward_token: address, _decimals: uint256, _fac
     self.reward_token = _reward_token
     self.decimals = _decimals
     FACTORY = _factory
-
     log UpdateCompass(empty(address), _compass)
+
+@internal
+def _paloma_check():
+    assert msg.sender == self.compass, "Not compass"
+    assert self.paloma == convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32), "Invalid paloma"
 
 @external
 def update_compass(new_compass: address):
-    assert msg.sender == self.compass and len(msg.data) == 68 and convert(slice(msg.data, 36, 32), bytes32) == self.paloma, "Unauthorized"
+    self._paloma_check()
     self.compass = new_compass
-
     log UpdateCompass(msg.sender, new_compass)
 
 @external
@@ -112,22 +115,18 @@ def set_paloma():
     assert msg.sender == self.compass and self.paloma == empty(bytes32) and len(msg.data) == 36, "Invalid"
     _paloma: bytes32 = convert(slice(msg.data, 4, 32), bytes32)
     self.paloma = _paloma
-
     log SetPaloma(_paloma)
 
 @external
 def set_reward_token(_new_reward_token: address, _new_decimals: uint256):
-    assert msg.sender == self.compass and convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32) == self.paloma, "Unauthorized"
-
+    self._paloma_check()
     self.reward_token = _new_reward_token
     self.decimals = _new_decimals
-
     log UpdateRewardToken(_new_reward_token, _new_decimals)
 
 @external
 def send_reward(_amount: uint256):
-    assert msg.sender == self.compass and convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32) == self.paloma, "Unauthorized"
-
+    self._paloma_check()
     _decimals: uint256 = self.decimals
     _epoch_add_cnt: uint256 = unsafe_div(_amount, unsafe_mul(1000, 10**_decimals))
     assert _amount % (unsafe_mul(1000, 10**_decimals)) == 0, "Invalid Fund Amount"
@@ -176,7 +175,7 @@ def send_reward(_amount: uint256):
 
 @external
 def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
-    assert msg.sender == self.compass and convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32) == self.paloma, "Unauthorized"
+    self._paloma_check()
 
     _active_epoch_num: uint256 = self.active_epoch_num
     assert _active_epoch_num <= self.epoch_cnt, "No Reward yet"
@@ -230,7 +229,7 @@ def create_bot(swap_infos: DynArray[SwapInfo, MAX_SIZE],
         msg.sender)
 
     log Claimed(msg.sender, _claimable_amount)
-    
+
     # init claimable amount 
     self.claimable_amount[msg.sender] = 0
 
