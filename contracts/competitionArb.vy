@@ -20,6 +20,7 @@ struct BidInfo:
 MAX_ENTRY: constant(uint256) = 1000
 
 bid_info: public(HashMap[uint256, BidInfo])
+latest_bid: public(HashMap[address, uint256])
 epoch_info: public(EpochInfo)
 paloma: public(bytes32)
 compass: public(address)
@@ -73,6 +74,7 @@ def bid(_price_prediction_val: uint256):
     assert block.timestamp >= _epoch_info.competition_start, "Not Active"
     assert block.timestamp < _epoch_info.competition_end, "Not Active"
     assert _epoch_info.entry_cnt < MAX_ENTRY, "Entry Limited"
+    assert self.latest_bid[msg.sender] < _epoch_info.epoch_id, "Already bid"
 
     _epoch_info.entry_cnt = unsafe_add(_epoch_info.entry_cnt, 1)
     
@@ -82,6 +84,7 @@ def bid(_price_prediction_val: uint256):
         sender: msg.sender,
         price_prediction_val: _price_prediction_val
     })
+    self.latest_bid[msg.sender] = _epoch_info.epoch_id
     self.epoch_info = _epoch_info
 
     # Event Log
