@@ -53,10 +53,10 @@ def _paloma_check():
     assert self.paloma == convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32), "Invalid paloma"
 
 @external
-def update_compass(new_compass: address):
+def update_compass(_new_compass: address):
     self._paloma_check()
-    self.compass = new_compass
-    log UpdateCompass(msg.sender, new_compass)
+    self.compass = _new_compass
+    log UpdateCompass(msg.sender, _new_compass)
 
 @external
 def set_paloma():

@@ -1,7 +1,2 @@
 name: juice-bot-eth-predictor-vyper
 
-hardhat:
-  fork:
-    ethereum:
-      mainnet:
-        upstream_provider: infura
