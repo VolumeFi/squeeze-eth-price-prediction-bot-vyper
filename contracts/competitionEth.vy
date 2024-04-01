@@ -86,7 +86,11 @@ event SetWinner:
     epoch_id: uint256
     winner: address
     claimable_amount: uint256
-    
+
+event Claimed:
+    sender: address
+    claimed_amount: uint256
+
 @external
 def __init__(_compass: address, _reward_token: address, _decimals: uint256, _factory: address):
     self.compass = _compass
@@ -125,9 +129,9 @@ def send_reward(_amount: uint256):
     assert msg.sender == self.compass and convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32) == self.paloma, "Unauthorized"
 
     _decimals: uint256 = self.decimals
-    _epoch_add_cnt: uint256 = _amount / (1000 * 10**_decimals)
-    assert _amount % (1000 * 10**_decimals) == 0, "Invalid Fund Amount"
-    assert _amount <= MAX_FUND * 10**_decimals, "Maximum Limit 5000"
+    _epoch_add_cnt: uint256 = unsafe_div(_amount, unsafe_mul(1000, 10**_decimals))
+    assert _amount % (unsafe_mul(1000, 10**_decimals)) == 0, "Invalid Fund Amount"
+    assert _amount <= unsafe_mul(MAX_FUND, 10**_decimals), "Maximum Limit 5000"
     
     # Transfer reward token to the contract
     _reward_token: address = self.reward_token
@@ -225,6 +229,8 @@ def create_bot(swap_infos: DynArray[SwapInfo, MAX_SIZE],
         interval, 
         msg.sender)
 
+    log Claimed(msg.sender, _claimable_amount)
+    
     # init claimable amount 
     self.claimable_amount[msg.sender] = 0
 
