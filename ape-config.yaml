@@ -1,2 +1,5 @@
 name: juice-bot-eth-predictor-vyper
 
+vyper:
+  version: 0.3.10
+  evm_version: shanghai
