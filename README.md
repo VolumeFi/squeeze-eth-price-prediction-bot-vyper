@@ -114,3 +114,34 @@ Emitted when the sender create the juice bot by using his claimable amount.
 - **Properties:**
   - `sender` (address): Sender's address
   - `claimable_amount` (uint256): Claimable amount.
+
+## Events (`competitionArb.vy`)
+
+#### `Bid`
+Emitted when user predict the ETH price.
+
+- **Properties:**
+  - `epoch_id` (uint256): Epoch id
+  - `bidder` (address): user's address
+  - `prediction_val` (uint256): ETH prediction value
+
+#### `SetPaloma`
+Emitted when the Paloma CW address is set.
+
+- **Properties:**
+  - `paloma` (bytes32): The Paloma CW address.
+
+#### `UpdateCompass`
+Emitted when the Compass-EVM address is updated.
+
+- **Properties:**
+  - `old_compass` (address): The old Compass-EVM address.
+  - `new_compass` (address): The new Compass-EVM address.
+
+#### `SetActiveEpoch`
+Emitted when we activate new Epoch.
+
+- **Properties:**
+  - `epoch_id` (uint256): Epoch id
+  - `competition_start` (uint256): Epoch start timestamp in sec
+  - `competition_end` (uint256): Epoch end timestamp in sec
