@@ -74,11 +74,12 @@ Predicts the ETH price value.
 Emitted when a reward is sented.
 
 - **Properties:**
-  - `epoch_id` (uint256):
-  - `sender` (address):
-  - `reward_token` (address):
-  - `amount` (uint256):
-  - `competition_start` (uint256):
+  - `epoch_id` (uint256): Epoch id
+  - `sender` (address): msg sender address
+  - `reward_token` (address): Reward token address
+  - `amount` (uint256): reward token amount
+  - `competition_start` (uint256): competition start date in sec for this Epoch
+  - `competition_end` (uint256): competition end date in sec for this Epoch
 
 #### `UpdateCompass`
 Emitted when the Compass-EVM address is updated.
