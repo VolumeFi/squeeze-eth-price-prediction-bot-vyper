@@ -169,7 +169,7 @@ def send_reward(_amount: uint256):
             })
 
             # Event Log
-            log RewardSent(_epoch_cnt, msg.sender, _reward_token, _amount, _competition_start, _competition_end)
+            log RewardSent(_epoch_cnt, msg.sender, _reward_token, unsafe_mul(1000, 10**_decimals), _competition_start, _competition_end)
  
     self.epoch_cnt = _epoch_cnt
 
