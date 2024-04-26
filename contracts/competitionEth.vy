@@ -192,6 +192,7 @@ def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
 
 @external
 @payable
+@nonreentrant("lock")
 def create_bot(swap_infos: DynArray[SwapInfo, MAX_SIZE], 
         collateral: address, 
         settlement: address, 
