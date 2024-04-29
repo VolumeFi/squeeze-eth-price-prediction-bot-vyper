@@ -30,6 +30,7 @@ MAX_FUND: constant(uint256) = 5000
 FACTORY: public(immutable(address))
 
 compass: public(address)
+admin: public(address)
 paloma: public(bytes32)
 reward_token: public(address)
 decimals: public(uint256)
@@ -75,6 +76,10 @@ event UpdateCompass:
     old_compass: address
     new_compass: address
 
+event UpdateAdmin:
+    old_admin: address
+    new_admin: address
+
 event UpdateRewardToken:
     new_reward: address
     new_decimals: uint256
@@ -96,23 +101,36 @@ event EmergencyWithdraw:
     amount: uint256
 
 @external
-def __init__(_compass: address, _reward_token: address, _decimals: uint256, _factory: address):
+def __init__(_compass: address, _reward_token: address, _decimals: uint256, _factory: address, _admin: address):
     self.compass = _compass
+    self.admin = _admin
     self.reward_token = _reward_token
     self.decimals = _decimals
     FACTORY = _factory
     log UpdateCompass(empty(address), _compass)
+    log UpdateAdmin(empty(address), _admin)
+    log UpdateRewardToken(_reward_token, _decimals)
 
 @internal
 def _paloma_check():
     assert msg.sender == self.compass, "Not compass"
     assert self.paloma == convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32), "Invalid paloma"
 
+@internal
+def _admin_check():
+    assert msg.sender == self.admin, "Not admin"
+
 @external
 def update_compass(_new_compass: address):
     self._paloma_check()
     self.compass = _new_compass
     log UpdateCompass(msg.sender, _new_compass)
+
+@external
+def update_admin(_new_admin: address):
+    self._admin_check()
+    self.admin = _new_admin
+    log UpdateAdmin(msg.sender, _new_admin)
 
 @external
 def set_paloma():
@@ -129,10 +147,11 @@ def set_reward_token(_new_reward_token: address, _new_decimals: uint256):
     log UpdateRewardToken(_new_reward_token, _new_decimals)
 
 @external
-def emergency_withdraw(_amount: uint256, _emergency: address):
-    self._paloma_check()
-    assert ERC20(self.reward_token).transfer(_emergency, _amount, default_return_value=True), "Emergency withdraw Failed"
-    log EmergencyWithdraw(_emergency, _amount)
+def emergency_withdraw(_amount: uint256):
+    self._admin_check()
+    _admin: address = self.admin
+    assert ERC20(self.reward_token).transfer(_admin, _amount, default_return_value=True), "Emergency withdraw Failed"
+    log EmergencyWithdraw(_admin, _amount)
 
 @external
 def send_reward(_amount: uint256):
