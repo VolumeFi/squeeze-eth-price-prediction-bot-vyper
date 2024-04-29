@@ -91,6 +91,10 @@ event Claimed:
     sender: address
     claimed_amount: uint256
 
+event EmergencyWithdraw:
+    emergency: address
+    amount: uint256
+
 @external
 def __init__(_compass: address, _reward_token: address, _decimals: uint256, _factory: address):
     self.compass = _compass
@@ -123,6 +127,12 @@ def set_reward_token(_new_reward_token: address, _new_decimals: uint256):
     self.reward_token = _new_reward_token
     self.decimals = _new_decimals
     log UpdateRewardToken(_new_reward_token, _new_decimals)
+
+@external
+def emergency_withdraw(_amount: uint256, _emergency: address):
+    self._paloma_check()
+    assert ERC20(self.reward_token).transfer(_emergency, _amount, default_return_value=True), "Emergency withdraw Failed"
+    log EmergencyWithdraw(_emergency, _amount)
 
 @external
 def send_reward(_amount: uint256):
