@@ -9,7 +9,6 @@
 struct EpochInfo:
     competition_start: uint256
     competition_end: uint256
-    entry_cnt: uint256
 
 struct WinnerInfo:
     winner: address
@@ -179,8 +178,7 @@ def send_reward(_amount: uint256):
             # Write
             self.epoch_info[_epoch_cnt] = EpochInfo({
                 competition_start: _competition_start,
-                competition_end: _competition_end,
-                entry_cnt: 0
+                competition_end: _competition_end
             })
 
             # Event Log
