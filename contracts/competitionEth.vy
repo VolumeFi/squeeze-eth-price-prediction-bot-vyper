@@ -224,7 +224,7 @@ def create_bot(swap_infos: DynArray[SwapInfo, MAX_SIZE],
     _claimable_amount: uint256 = self.claimable_amount[msg.sender]
     assert _claimable_amount > 0, "No Claimable Amount"
 
-    ERC20(REWARD_TOKEN).approve(FACTORY, _claimable_amount)
+    assert ERC20(REWARD_TOKEN).approve(FACTORY, _claimable_amount, default_return_value=True), "Approve Failed"
     CreateBotFactory(FACTORY).create_bot(
         swap_infos, 
         collateral, 
