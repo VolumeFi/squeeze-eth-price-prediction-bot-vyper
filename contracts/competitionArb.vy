@@ -68,7 +68,10 @@ def set_paloma():
 @external
 def set_active_epoch(_epoch_info: EpochInfo):
     self._paloma_check()
+    _current_epoch_info: EpochInfo = self.epoch_info
+    assert _current_epoch_info.epoch_id < _epoch_info.epoch_id, "Invalid Epoch Info"
     self.epoch_info = _epoch_info
+    self.bid_info = []
     log SetActiveEpoch(_epoch_info.epoch_id, _epoch_info.competition_start, _epoch_info.competition_end)
 
 @external

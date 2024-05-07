@@ -110,7 +110,7 @@ def __init__(_compass: address, _reward_token: address, _factory: address, _admi
 def _paloma_check():
     assert msg.sender == self.compass, "Not compass"
     assert self.paloma == convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32), "Invalid paloma"
-
+    
 @internal
 def _admin_check():
     assert msg.sender == self.admin, "Not admin"
@@ -194,7 +194,7 @@ def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
     assert _active_epoch_num <= self.epoch_cnt, "No Reward yet"
 
     _i: uint256 = 0
-    for _winner_info in _winner_infos:  
+    for _winner_info in _winner_infos:
         self.winner_info[_active_epoch_num][_i] = _winner_infos[_i]
         self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
         _i = unsafe_add(_i, 1)
