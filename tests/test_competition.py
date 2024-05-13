@@ -55,21 +55,22 @@ def test_competition_arb(Deployer, accounts, CompetitionArb, Compass, Alice, cha
     assert Deployer == accounts[0]
 
     func_sig = function_signature(
-        "set_active_epoch((uint256,uint256,uint256,uint256))")
-    enc_abi = encode(["(uint256,uint256,uint256,uint256)"], [(1, 1715126400, 1715212800, 0)])
+        "set_active_epoch((uint256,uint256,uint256,uint256,uint256))")
+    enc_abi = encode(["(uint256,uint256,uint256,uint256,uint256)"], [(1, 1715644800, 1715731200, 0, 1000)])
     add_payload = encode(["bytes32"], [b'123456'])
     payload = func_sig + enc_abi + add_payload
     CompetitionArb(sender=Compass, data=payload)
 
     assert CompetitionArb.epoch_info().epoch_id == 1
-    assert CompetitionArb.epoch_info().competition_start == 1715126400
-    assert CompetitionArb.epoch_info().competition_end == 1715212800
+    assert CompetitionArb.epoch_info().competition_start == 1715644800
+    assert CompetitionArb.epoch_info().competition_end == 1715731200
     assert CompetitionArb.epoch_info().entry_cnt == 0
+    assert CompetitionArb.epoch_info().prize_amount == 1000
 
     with ape.reverts():
         CompetitionArb.bid(3000, sender=Alice)
 
-    chain.pending_timestamp += 86000
+    chain.pending_timestamp += 86400
     CompetitionArb.bid(3000, sender=Alice)
     assert CompetitionArb.epoch_info().entry_cnt == 1
 
@@ -79,11 +80,12 @@ def test_competition_arb(Deployer, accounts, CompetitionArb, Compass, Alice, cha
     with ape.reverts():
         CompetitionArb(sender=Compass, data=payload)
 
-    enc_abi = encode(["(uint256,uint256,uint256,uint256)"], [(2, 1715126400, 1715212800, 0)])
+    enc_abi = encode(["(uint256,uint256,uint256,uint256,uint256)"], [(2, 1715731200, 1715817600, 0, 500)])
     add_payload = encode(["bytes32"], [b'123456'])
     payload = func_sig + enc_abi + add_payload
     CompetitionArb(sender=Compass, data=payload)
 
+    chain.pending_timestamp += 86400
     CompetitionArb.bid(5000, sender=Alice)
     CompetitionArb.bid(3000, sender=Deployer)
     assert CompetitionArb.bid_info(0).epoch_id == 2
@@ -91,49 +93,55 @@ def test_competition_arb(Deployer, accounts, CompetitionArb, Compass, Alice, cha
 
     assert CompetitionArb.epoch_info().entry_cnt == 2
 
+    assert CompetitionArb.my_info(1, Alice) == 3000
+    assert CompetitionArb.my_info(2, Alice) == 5000
+    assert CompetitionArb.my_info(1, Deployer) == 0
+    assert CompetitionArb.my_info(2, Deployer) == 3000
+    
 def test_competition_eth(Deployer, accounts, USDT, CompetitionEth, Admin, Compass):
     assert Deployer == accounts[0]
 
     assert CompetitionEth.epoch_cnt() == 0
     USDT.approve(CompetitionEth.address, 1000000000, sender=Deployer)
-    receipt = CompetitionEth.send_reward(1000000000, sender=Deployer)
+    receipt = CompetitionEth.send_reward(1000000000, 1, sender=Deployer)
     assert not receipt.failed
     assert CompetitionEth.epoch_cnt() == 1
     assert CompetitionEth.active_epoch_num() == 1
     
     USDT.approve(CompetitionEth.address, 2000000000, sender=Deployer)
-    receipt = CompetitionEth.send_reward(2000000000, sender=Deployer)
+    receipt = CompetitionEth.send_reward(1000000000, 2, sender=Deployer)
     assert not receipt.failed
     assert CompetitionEth.epoch_cnt() == 3
 
     USDT.approve(CompetitionEth.address, 3000000000, sender=Deployer)
-    receipt = CompetitionEth.send_reward(3000000000, sender=Deployer)
+    receipt = CompetitionEth.send_reward(1000000000, 3, sender=Deployer)
     assert not receipt.failed
     assert CompetitionEth.epoch_cnt() == 6
 
     USDT.approve(CompetitionEth.address, 4000000000, sender=Deployer)
-    receipt = CompetitionEth.send_reward(4000000000, sender=Deployer)
+    receipt = CompetitionEth.send_reward(1000000000, 4, sender=Deployer)
     assert not receipt.failed
     assert CompetitionEth.epoch_cnt() == 10
 
     USDT.approve(CompetitionEth.address, 5000000000, sender=Deployer)
-    receipt = CompetitionEth.send_reward(5000000000, sender=Deployer)
+    receipt = CompetitionEth.send_reward(1000000000, 5, sender=Deployer)
     assert not receipt.failed
     assert CompetitionEth.epoch_cnt() == 15
     
     with ape.reverts():
         USDT.approve(CompetitionEth.address, 6000000000, sender=Deployer)
-        receipt = CompetitionEth.send_reward(6000000000, sender=Deployer)
+        receipt = CompetitionEth.send_reward(1000000000, 6, sender=Deployer)
 
-    assert CompetitionEth.epoch_info(1).competition_start == 1715126400
-    assert CompetitionEth.epoch_info(1).competition_end == 1715212800
+    assert CompetitionEth.epoch_info(1).competition_start == 1715644800
+    assert CompetitionEth.epoch_info(1).competition_end == 1715731200
 
-    assert CompetitionEth.epoch_info(2).competition_start == 1715212800
-    assert CompetitionEth.epoch_info(2).competition_end == 1715299200
+    assert CompetitionEth.epoch_info(2).competition_start == 1715731200
+    assert CompetitionEth.epoch_info(2).competition_end == 1715817600
 
     func_sig = function_signature(
         "set_winner_list((address,uint256)[])")
-    enc_abi = encode(["(address,uint256)[]"], [[(Deployer.address, 1000000000)]])
+    # enc_abi = encode(["(address,uint256)[]"], [[(Deployer.address, 1000000000)]])
+    enc_abi = encode(["(address,uint256)[]"], [[]])
     add_payload = encode(["bytes32"], [b'123456'])
     payload = func_sig + enc_abi + add_payload
     with ape.reverts():
