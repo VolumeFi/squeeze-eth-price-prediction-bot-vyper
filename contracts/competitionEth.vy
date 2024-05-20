@@ -89,6 +89,10 @@ event SetWinner:
     winner: address
     claimable_amount: uint256
 
+event RollOverReward:
+    epoch_id: uint256
+    rollover_amount: uint256
+
 event Claimed:
     sender: address
     claimed_amount: uint256
@@ -176,11 +180,11 @@ def send_reward(_daily_amount: uint256, _days: uint256):
                 _competition_start = unsafe_add(unsafe_mul(unsafe_div(block.timestamp, DAY_IN_SEC), DAY_IN_SEC), DAY_IN_SEC)
                 _competition_end = unsafe_add(_competition_start, DAY_IN_SEC)
 
-            # Write
+            _current_prize_amount: uint256 = self.epoch_info[_epoch_cnt].prize_amount
             self.epoch_info[_epoch_cnt] = EpochInfo({
                 competition_start: _competition_start,
                 competition_end: _competition_end,
-                prize_amount: _daily_amount
+                prize_amount: _current_prize_amount + _daily_amount
             })
 
             # Event Log
@@ -195,15 +199,23 @@ def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
     _active_epoch_num: uint256 = self.active_epoch_num
     assert _active_epoch_num <= self.epoch_cnt, "No Reward yet"
 
-    _i: uint256 = 0
-    for _winner_info in _winner_infos:
-        self.winner_info[_active_epoch_num][_winner_info.winner] = _winner_info.claimable_amount
-        self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
-        _i = unsafe_add(_i, 1)
-        log SetWinner(_active_epoch_num, _winner_info.winner, _winner_info.claimable_amount)
+    _winner_len: uint256 = len(_winner_infos)
+    _next_epoch_num: uint256 = unsafe_add(_active_epoch_num, 1)
+    if _winner_len == 0:
+        _next_prize_amount: uint256 = self.epoch_info[_next_epoch_num].prize_amount
+        _current_prize_amount: uint256 = self.epoch_info[_active_epoch_num].prize_amount
+        self.epoch_info[_next_epoch_num].prize_amount = _next_prize_amount + _current_prize_amount
+
+        log RollOverReward(_active_epoch_num, _current_prize_amount)
+    else:
+        for _winner_info in _winner_infos:
+            self.winner_info[_active_epoch_num][_winner_info.winner] = _winner_info.claimable_amount
+            self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
+
+            log SetWinner(_active_epoch_num, _winner_info.winner, _winner_info.claimable_amount)
 
     # increse activeEpochNum for activating the next Epoch
-    self.active_epoch_num = unsafe_add(_active_epoch_num, 1)
+    self.active_epoch_num = _next_epoch_num
 
 @external
 @payable
