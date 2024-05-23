@@ -9,6 +9,7 @@
 struct EpochInfo:
     competition_start: uint256
     competition_end: uint256
+    prize_amount: uint256
 
 struct WinnerInfo:
     winner: address
@@ -24,7 +25,7 @@ struct SwapInfo:
 MAX_ENTRY: constant(uint256) = 1000
 MAX_SIZE: constant(uint256) = 8
 DAY_IN_SEC: constant(uint256) = 86400
-MAX_FUND: constant(uint256) = 5000
+MAX_FUNDABLE_DAYS: constant(uint256) = 5
 
 FACTORY: public(immutable(address))
 REWARD_TOKEN: public(immutable(address))
@@ -33,7 +34,7 @@ DECIMALS: public(immutable(uint256))
 compass: public(address)
 admin: public(address)
 paloma: public(bytes32)
-winner_info: public(HashMap[uint256, HashMap[uint256, WinnerInfo]])
+winner_info: public(HashMap[uint256, HashMap[address, uint256]])
 epoch_info: public(HashMap[uint256, EpochInfo])
 epoch_cnt: public(uint256)
 active_epoch_num: public(uint256)
@@ -88,6 +89,10 @@ event SetWinner:
     winner: address
     claimable_amount: uint256
 
+event RollOverReward:
+    epoch_id: uint256
+    rollover_amount: uint256
+
 event Claimed:
     sender: address
     claimed_amount: uint256
@@ -110,7 +115,7 @@ def __init__(_compass: address, _reward_token: address, _factory: address, _admi
 def _paloma_check():
     assert msg.sender == self.compass, "Not compass"
     assert self.paloma == convert(slice(msg.data, unsafe_sub(len(msg.data), 32), 32), bytes32), "Invalid paloma"
-
+    
 @internal
 def _admin_check():
     assert msg.sender == self.admin, "Not admin"
@@ -139,23 +144,23 @@ def emergency_withdraw(_amount: uint256):
     self._admin_check()
     _admin: address = self.admin
     assert ERC20(REWARD_TOKEN).transfer(_admin, _amount, default_return_value=True), "Emergency withdraw Failed"
-    log EmergencyWithdraw(_admin, _amount)
+    log EmergencyWithdraw(_admin, _amount) 
 
 @external
-def send_reward(_amount: uint256):
-    _epoch_add_cnt: uint256 = unsafe_div(_amount, unsafe_mul(1000, 10**DECIMALS))
-    assert _amount % (unsafe_mul(1000, 10**DECIMALS)) == 0, "Invalid Fund Amount"
-    assert _amount <= unsafe_mul(MAX_FUND, 10**DECIMALS), "Maximum Limit 5000"
+def send_reward(_daily_amount: uint256, _days: uint256):
+    assert _daily_amount > 0, "Invalid Fund Amount"
+    assert _days > 0, "Invalid days"
+    assert _days <= MAX_FUNDABLE_DAYS, "Max Fundable Days 5"
     
     # Transfer reward token to the contract
-    assert ERC20(REWARD_TOKEN).transferFrom(msg.sender, self, _amount, default_return_value=True), "Send Reward Failed"
+    assert ERC20(REWARD_TOKEN).transferFrom(msg.sender, self, unsafe_mul(_daily_amount, _days), default_return_value=True), "Send Reward Failed"
     
     _epoch_cnt: uint256 = self.epoch_cnt
     _competition_start: uint256 = 0
     _competition_end: uint256 = 0
 
-    for _i in range(5):
-        if _i < _epoch_add_cnt:
+    for _i in range(MAX_FUNDABLE_DAYS):
+        if _i < _days:
             if _epoch_cnt > 0:
                 _last_epoch_info: EpochInfo = self.epoch_info[_epoch_cnt]
                 _last_competition_start: uint256 = _last_epoch_info.competition_start
@@ -175,14 +180,15 @@ def send_reward(_amount: uint256):
                 _competition_start = unsafe_add(unsafe_mul(unsafe_div(block.timestamp, DAY_IN_SEC), DAY_IN_SEC), DAY_IN_SEC)
                 _competition_end = unsafe_add(_competition_start, DAY_IN_SEC)
 
-            # Write
+            _current_prize_amount: uint256 = self.epoch_info[_epoch_cnt].prize_amount
             self.epoch_info[_epoch_cnt] = EpochInfo({
                 competition_start: _competition_start,
-                competition_end: _competition_end
+                competition_end: _competition_end,
+                prize_amount: _current_prize_amount + _daily_amount
             })
 
             # Event Log
-            log RewardSent(_epoch_cnt, msg.sender, REWARD_TOKEN, unsafe_mul(1000, 10**DECIMALS), _competition_start, _competition_end)
+            log RewardSent(_epoch_cnt, msg.sender, REWARD_TOKEN, _daily_amount, _competition_start, _competition_end)
  
     self.epoch_cnt = _epoch_cnt
 
@@ -193,15 +199,23 @@ def set_winner_list(_winner_infos: DynArray[WinnerInfo, MAX_ENTRY]):
     _active_epoch_num: uint256 = self.active_epoch_num
     assert _active_epoch_num <= self.epoch_cnt, "No Reward yet"
 
-    _i: uint256 = 0
-    for _winner_info in _winner_infos:  
-        self.winner_info[_active_epoch_num][_i] = _winner_infos[_i]
-        self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
-        _i = unsafe_add(_i, 1)
-        log SetWinner(_active_epoch_num, _winner_info.winner, _winner_info.claimable_amount)
+    _winner_len: uint256 = len(_winner_infos)
+    _next_epoch_num: uint256 = unsafe_add(_active_epoch_num, 1)
+    if _winner_len == 0:
+        _next_prize_amount: uint256 = self.epoch_info[_next_epoch_num].prize_amount
+        _current_prize_amount: uint256 = self.epoch_info[_active_epoch_num].prize_amount
+        self.epoch_info[_next_epoch_num].prize_amount = _next_prize_amount + _current_prize_amount
+
+        log RollOverReward(_active_epoch_num, _current_prize_amount)
+    else:
+        for _winner_info in _winner_infos:
+            self.winner_info[_active_epoch_num][_winner_info.winner] = _winner_info.claimable_amount
+            self.claimable_amount[_winner_info.winner] = unsafe_add(self.claimable_amount[_winner_info.winner], _winner_info.claimable_amount)
+
+            log SetWinner(_active_epoch_num, _winner_info.winner, _winner_info.claimable_amount)
 
     # increse activeEpochNum for activating the next Epoch
-    self.active_epoch_num = unsafe_add(_active_epoch_num, 1)
+    self.active_epoch_num = _next_epoch_num
 
 @external
 @payable

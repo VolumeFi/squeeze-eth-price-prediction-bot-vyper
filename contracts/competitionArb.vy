@@ -11,6 +11,7 @@ struct EpochInfo:
     competition_start: uint256
     competition_end: uint256
     entry_cnt: uint256
+    prize_amount: uint256
 
 struct BidInfo:
     epoch_id: uint256
@@ -20,6 +21,7 @@ struct BidInfo:
 MAX_ENTRY: constant(uint256) = 1000
 
 bid_info: public(DynArray[BidInfo, MAX_ENTRY])
+my_info: public(HashMap[uint256, HashMap[address, uint256]])
 latest_bid: public(HashMap[address, uint256])
 epoch_info: public(EpochInfo)
 paloma: public(bytes32)
@@ -41,6 +43,7 @@ event SetActiveEpoch:
     epoch_id: uint256
     competition_start: uint256
     competition_end: uint256
+    prize_amount: uint256
 
 @external
 def __init__(_compass: address):
@@ -68,17 +71,21 @@ def set_paloma():
 @external
 def set_active_epoch(_epoch_info: EpochInfo):
     self._paloma_check()
+    _current_epoch_info: EpochInfo = self.epoch_info
+    assert _current_epoch_info.epoch_id < _epoch_info.epoch_id, "Invalid Epoch Info"
     self.epoch_info = _epoch_info
-    log SetActiveEpoch(_epoch_info.epoch_id, _epoch_info.competition_start, _epoch_info.competition_end)
+    self.bid_info = []
+    log SetActiveEpoch(_epoch_info.epoch_id, _epoch_info.competition_start, _epoch_info.competition_end, _epoch_info.prize_amount)
 
 @external
 def bid(_price_prediction_val: uint256):
     _epoch_info: EpochInfo = self.epoch_info
     
-    assert block.timestamp >= _epoch_info.competition_start, "Not Active"
-    assert block.timestamp < _epoch_info.competition_end, "Not Active"
+    assert block.timestamp >= _epoch_info.competition_start, "Not Active 1"
+    assert block.timestamp < _epoch_info.competition_end, "Not Active 2"
     assert _epoch_info.entry_cnt < MAX_ENTRY, "Entry Limited"
     assert self.latest_bid[msg.sender] < _epoch_info.epoch_id, "Already bid"
+    assert _price_prediction_val > 0, "Shouldn't be zero"
 
     _epoch_info.entry_cnt = unsafe_add(_epoch_info.entry_cnt, 1)
     
@@ -88,6 +95,7 @@ def bid(_price_prediction_val: uint256):
         sender: msg.sender,
         price_prediction_val: _price_prediction_val
     }))
+    self.my_info[_epoch_info.epoch_id][msg.sender] = _price_prediction_val
     self.latest_bid[msg.sender] = _epoch_info.epoch_id
     self.epoch_info = _epoch_info
 
